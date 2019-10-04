@@ -1,5 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+
+import 'first-input-delay';
+
 import 'typeface-roboto';
 import './index.css';
 import App from './components/App';
