@@ -26,6 +26,8 @@ export const performance = firebase.performance();
 
 export const COLLECTIONS = {
   USERS: 'users',
+  IMAGES: 'images',
+  AVATARS: 'avatars',
 };
 
 export const ANALYTICS_EVENTS = {
@@ -35,6 +37,7 @@ export const ANALYTICS_EVENTS = {
   LINK_AUTH_PROVIDER: 'link_auth_provider',
   RESET_PASSWORD: 'reset_password',
   CHANGE_AVATAR: 'change_avatar',
+  REMOVE_AVATAR: 'remove_avatar',
 };
 
 export const AUTH_METHODS = {

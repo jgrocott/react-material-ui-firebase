@@ -205,8 +205,8 @@ authentication.changeAvatar = async avatar => {
 
   const reference = storage
     .ref()
-    .child('images')
-    .child('avatars')
+    .child(COLLECTIONS.IMAGES)
+    .child(COLLECTIONS.AVATARS)
     .child(uid);
 
   await reference.put(avatar);
@@ -219,56 +219,33 @@ authentication.changeAvatar = async avatar => {
   analytics.logEvent(ANALYTICS_EVENTS.CHANGE_AVATAR);
 };
 
-authentication.removeAvatar = () =>
-  new Promise((resolve, reject) => {
-    const { currentUser } = auth;
+/**
+ * Remove a users avatar
+ */
+authentication.removeAvatar = async () => {
+  const {
+    currentUser,
+    currentUser: { uid },
+  } = auth;
 
-    if (!currentUser) {
-      reject();
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-      return;
-    }
-
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    currentUser
-      .updateProfile({
-        photoURL: null,
-      })
-      .then(value => {
-        const reference = storage
-          .ref()
-          .child('images')
-          .child('avatars')
-          .child(uid);
-
-        if (!reference) {
-          reject();
-
-          return;
-        }
-
-        reference
-          .delete()
-          .then(value => {
-            analytics.logEvent('remove_avatar');
-
-            resolve(value);
-          })
-          .catch(reason => {
-            reject(reason);
-          });
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  await currentUser.updateProfile({
+    photoURL: null,
   });
+
+  const reference = storage
+    .ref()
+    .child(COLLECTIONS.IMAGES)
+    .child(COLLECTIONS.AVATARS)
+    .child(uid);
+
+  await reference.delete();
+
+  analytics.logEvent(ANALYTICS_EVENTS.REMOVE_AVATAR);
+};
 
 authentication.changeFirstName = firstName =>
   new Promise((resolve, reject) => {
