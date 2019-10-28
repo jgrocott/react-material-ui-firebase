@@ -4,6 +4,9 @@ import firebase, {
   firestore,
   storage,
   getAuthProvider,
+  COLLECTIONS,
+  ANALYTICS_EVENTS,
+  AUTH_METHODS,
 } from '../firebase';
 
 const avatarFileTypes = [
@@ -39,7 +42,7 @@ authentication.signUp = async fields => {
     user: { uid },
   } = response;
 
-  const reference = firestore.collection('users').doc(uid);
+  const reference = firestore.collection(COLLECTIONS.USERS).doc(uid);
 
   const userProfile = await reference.set({
     firstName,
@@ -47,42 +50,28 @@ authentication.signUp = async fields => {
     username,
   });
 
-  analytics.logEvent('sign_up', {
-    method: 'password',
+  analytics.logEvent(ANALYTICS_EVENTS.SIGNUP, {
+    method: AUTH_METHODS.PASSWORD,
   });
 
   return userProfile;
 };
 
-authentication.signIn = (emailAddress, password) =>
-  new Promise((resolve, reject) => {
-    if (!emailAddress || !password) {
-      reject();
+authentication.signIn = async (emailAddress, password) => {
+  if (!emailAddress || !password) {
+    return;
+  }
 
-      return;
-    }
+  const response = await auth.signInWithEmailAndPassword(
+    emailAddress,
+    password
+  );
 
-    const { currentUser } = auth;
-
-    if (currentUser) {
-      reject();
-
-      return;
-    }
-
-    auth
-      .signInWithEmailAndPassword(emailAddress, password)
-      .then(value => {
-        analytics.logEvent('login', {
-          method: 'password',
-        });
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  analytics.logEvent(ANALYTICS_EVENTS.LOGIN, {
+    method: AUTH_METHODS.PASSWORD,
   });
+  return response;
+};
 
 /**
  * Register user using an auth provider
@@ -98,7 +87,7 @@ authentication.signInWithAuthProvider = async providerId => {
   // Attempt to register the user
   const response = await auth.signInWithPopup(provider);
 
-  analytics.logEvent('login', {
+  analytics.logEvent(ANALYTICS_EVENTS.LOGIN, {
     method: providerId,
   });
 

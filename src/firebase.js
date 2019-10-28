@@ -30,6 +30,11 @@ export const COLLECTIONS = {
 
 export const ANALYTICS_EVENTS = {
   SIGNUP: 'sign_up',
+  LOGIN: 'login',
+};
+
+export const AUTH_METHODS = {
+  PASSWORD: 'password',
 };
 
 export const getAuthProvider = providerId => {
