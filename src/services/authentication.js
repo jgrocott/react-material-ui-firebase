@@ -150,27 +150,17 @@ authentication.authProviderData = providerId => {
   );
 };
 
-authentication.signOut = () =>
-  new Promise((resolve, reject) => {
-    const { currentUser } = auth;
+/** Signout a user */
+authentication.signOut = async () => {
+  const { currentUser } = auth;
 
-    if (!currentUser) {
-      reject();
+  if (!currentUser) {
+    return;
+  }
 
-      return;
-    }
-
-    auth
-      .signOut()
-      .then(value => {
-        analytics.logEvent('sign_out');
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
-  });
+  await auth.signOut();
+  analytics.logEvent(ANALYTICS_EVENTS.LOGOUT);
+};
 
 authentication.resetPassword = emailAddress =>
   new Promise((resolve, reject) => {
