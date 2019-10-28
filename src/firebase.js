@@ -38,6 +38,10 @@ export const ANALYTICS_EVENTS = {
   RESET_PASSWORD: 'reset_password',
   CHANGE_AVATAR: 'change_avatar',
   REMOVE_AVATAR: 'remove_avatar',
+  CHANGE_FIRST_NAME: 'change_first_name',
+  CHANGE_LAST_NAME: 'change_last_name',
+  CHANGE_USERNAME: 'change_username',
+  CHANGE_EMAIL_ADDRESS: 'change_email_address',
 };
 
 export const AUTH_METHODS = {

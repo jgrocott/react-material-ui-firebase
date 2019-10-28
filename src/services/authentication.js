@@ -251,6 +251,10 @@ authentication.removeAvatar = async () => {
  * Change a users first name
  */
 authentication.changeFirstName = async firstName => {
+  if (!firstName) {
+    throw new Error('First name is required.');
+  }
+
   const {
     currentUser,
     currentUser: { uid },
@@ -269,133 +273,76 @@ authentication.changeFirstName = async firstName => {
   analytics.logEvent(ANALYTICS_EVENTS.CHANGE_FIRST_NAME);
 };
 
-authentication.changeLastName = lastName =>
-  new Promise((resolve, reject) => {
-    if (!lastName) {
-      reject();
+/**
+ * Change a users last name
+ */
+authentication.changeLastName = async lastName => {
+  if (!lastName) {
+    throw new Error('Last name is required.');
+  }
 
-      return;
-    }
+  const {
+    currentUser,
+    currentUser: { uid },
+  } = auth;
 
-    const { currentUser } = auth;
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-    if (!currentUser) {
-      reject();
+  const reference = firestore.collection(COLLECTIONS.USERS).doc(uid);
 
-      return;
-    }
-
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    const reference = firestore.collection('users').doc(uid);
-
-    if (!reference) {
-      reject();
-
-      return;
-    }
-
-    reference
-      .update({
-        lastName,
-      })
-      .then(value => {
-        analytics.logEvent('change_last_name');
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  await reference.update({
+    lastName,
   });
 
-authentication.changeUsername = username =>
-  new Promise((resolve, reject) => {
-    if (!username) {
-      reject();
+  analytics.logEvent(ANALYTICS_EVENTS.CHANGE_LAST_NAME);
+};
 
-      return;
-    }
+/**
+ * Change a users username
+ */
+authentication.changeUsername = async username => {
+  if (!username) {
+    throw new Error('Username is required.');
+  }
 
-    const { currentUser } = auth;
+  const {
+    currentUser,
+    currentUser: { uid },
+  } = auth;
 
-    if (!currentUser) {
-      reject();
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-      return;
-    }
+  const reference = firestore.collection(COLLECTIONS.USERS).doc(uid);
 
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    const reference = firestore.collection('users').doc(uid);
-
-    if (!reference) {
-      reject();
-
-      return;
-    }
-
-    reference
-      .update({
-        username,
-      })
-      .then(value => {
-        analytics.logEvent('change_username');
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  await reference.update({
+    username,
   });
 
-authentication.changeEmailAddress = emailAddress =>
-  new Promise((resolve, reject) => {
-    if (!emailAddress) {
-      reject();
+  analytics.logEvent(ANALYTICS_EVENTS.CHANGE_USERNAME);
+};
 
-      return;
-    }
+/**
+ * Change a users email address
+ */
+authentication.changeEmailAddress = async emailAddress => {
+  if (!emailAddress) {
+    throw new Error('Email address is required.');
+  }
 
-    const { currentUser } = auth;
+  const { currentUser } = auth;
 
-    if (!currentUser) {
-      reject();
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-      return;
-    }
+  await currentUser.updateEmail(emailAddress);
 
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    currentUser
-      .updateEmail(emailAddress)
-      .then(value => {
-        analytics.logEvent('change_email_address');
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
-  });
+  analytics.logEvent(ANALYTICS_EVENTS.CHANGE_EMAIL_ADDRESS);
+};
 
 authentication.changePassword = password =>
   new Promise((resolve, reject) => {
