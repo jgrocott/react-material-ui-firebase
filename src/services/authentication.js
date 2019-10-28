@@ -247,51 +247,27 @@ authentication.removeAvatar = async () => {
   analytics.logEvent(ANALYTICS_EVENTS.REMOVE_AVATAR);
 };
 
-authentication.changeFirstName = firstName =>
-  new Promise((resolve, reject) => {
-    if (!firstName) {
-      reject();
+/**
+ * Change a users first name
+ */
+authentication.changeFirstName = async firstName => {
+  const {
+    currentUser,
+    currentUser: { uid },
+  } = auth;
 
-      return;
-    }
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-    const { currentUser } = auth;
+  const reference = firestore.collection(COLLECTIONS.USERS).doc(uid);
 
-    if (!currentUser) {
-      reject();
-
-      return;
-    }
-
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    const reference = firestore.collection('users').doc(uid);
-
-    if (!reference) {
-      reject();
-
-      return;
-    }
-
-    reference
-      .update({
-        firstName,
-      })
-      .then(value => {
-        analytics.logEvent('change_first_name');
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  await reference.update({
+    firstName,
   });
+
+  analytics.logEvent(ANALYTICS_EVENTS.CHANGE_FIRST_NAME);
+};
 
 authentication.changeLastName = lastName =>
   new Promise((resolve, reject) => {
