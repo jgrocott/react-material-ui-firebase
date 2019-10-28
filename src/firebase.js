@@ -14,7 +14,7 @@ firebase.initializeApp({
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 });
 
 export default firebase;
@@ -23,3 +23,28 @@ export const auth = firebase.auth();
 export const firestore = firebase.firestore();
 export const storage = firebase.storage();
 export const performance = firebase.performance();
+
+export const COLLECTIONS = {
+  USERS: 'users',
+};
+
+export const ANALYTICS_EVENTS = {
+  SIGNUP: 'sign_up',
+};
+
+export const getAuthProvider = providerId => {
+  if (!providerId) {
+    throw new Error('No provider supplied.');
+  }
+
+  const {
+    auth: { OAuthProvider },
+  } = firebase;
+  const provider = new OAuthProvider(providerId);
+
+  if (!provider) {
+    throw new Error('Invalid provider supplied.');
+  }
+
+  return provider;
+};
