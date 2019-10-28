@@ -33,6 +33,8 @@ export const ANALYTICS_EVENTS = {
   LOGIN: 'login',
   SIGNOUT: 'sign_out',
   LINK_AUTH_PROVIDER: 'link_auth_provider',
+  RESET_PASSWORD: 'reset_password',
+  CHANGE_AVATAR: 'change_avatar',
 };
 
 export const AUTH_METHODS = {

@@ -162,109 +162,62 @@ authentication.signOut = async () => {
   analytics.logEvent(ANALYTICS_EVENTS.SIGNOUT);
 };
 
-authentication.resetPassword = emailAddress =>
-  new Promise((resolve, reject) => {
-    if (!emailAddress) {
-      reject();
+/**
+ * Request a password reset.
+ */
+authentication.resetPassword = async emailAddress => {
+  if (!emailAddress) {
+    return;
+  }
 
-      return;
-    }
+  const { currentUser } = auth;
 
-    const { currentUser } = auth;
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-    if (currentUser) {
-      reject();
+  const response = await auth.sendPasswordResetEmail(emailAddress);
+  analytics.logEvent(ANALYTICS_EVENTS.RESET_PASSWORD);
 
-      return;
-    }
+  return response;
+};
 
-    auth
-      .sendPasswordResetEmail(emailAddress)
-      .then(value => {
-        analytics.logEvent('reset_password');
+/**
+ * Change a users avatar
+ */
+authentication.changeAvatar = async avatar => {
+  if (!avatarFileTypes.includes(avatar.type)) {
+    throw new Error('Invalid file type specified.');
+  }
 
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  if (avatar.size > 20 * 1024 * 1024) {
+    throw new Error('Maximum file size exceeded.');
+  }
+
+  const {
+    currentUser,
+    currentUser: { uid },
+  } = auth;
+
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
+
+  const reference = storage
+    .ref()
+    .child('images')
+    .child('avatars')
+    .child(uid);
+
+  await reference.put(avatar);
+  const downloadURL = await reference.getDownloadURL();
+
+  await currentUser.updateProfile({
+    photoURL: downloadURL,
   });
 
-authentication.changeAvatar = avatar =>
-  new Promise((resolve, reject) => {
-    if (!avatar) {
-      reject();
-
-      return;
-    }
-
-    if (!avatarFileTypes.includes(avatar.type)) {
-      reject();
-
-      return;
-    }
-
-    if (avatar.size > 20 * 1024 * 1024) {
-      reject();
-
-      return;
-    }
-
-    const { currentUser } = auth;
-
-    if (!currentUser) {
-      reject();
-
-      return;
-    }
-
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    const reference = storage
-      .ref()
-      .child('images')
-      .child('avatars')
-      .child(uid);
-
-    if (!reference) {
-      reject();
-
-      return;
-    }
-
-    reference
-      .put(avatar)
-      .then(uploadTaskSnapshot => {
-        reference
-          .getDownloadURL()
-          .then(value => {
-            currentUser
-              .updateProfile({
-                photoURL: value,
-              })
-              .then(value => {
-                analytics.logEvent('change_avatar');
-
-                resolve(value);
-              })
-              .catch(reason => {
-                reject(reason);
-              });
-          })
-          .catch(reason => {
-            reject(reason);
-          });
-      })
-      .catch(reason => {
-        reject(reason);
-      });
-  });
+  analytics.logEvent(ANALYTICS_EVENTS.CHANGE_AVATAR);
+};
 
 authentication.removeAvatar = () =>
   new Promise((resolve, reject) => {
