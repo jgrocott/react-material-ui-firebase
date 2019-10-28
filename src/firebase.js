@@ -31,6 +31,7 @@ export const COLLECTIONS = {
 export const ANALYTICS_EVENTS = {
   SIGNUP: 'sign_up',
   LOGIN: 'login',
+  SIGNOUT: 'sign_out',
   LINK_AUTH_PROVIDER: 'link_auth_provider',
 };
 

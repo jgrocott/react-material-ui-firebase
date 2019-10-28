@@ -159,7 +159,7 @@ authentication.signOut = async () => {
   }
 
   await auth.signOut();
-  analytics.logEvent(ANALYTICS_EVENTS.LOGOUT);
+  analytics.logEvent(ANALYTICS_EVENTS.SIGNOUT);
 };
 
 authentication.resetPassword = emailAddress =>
