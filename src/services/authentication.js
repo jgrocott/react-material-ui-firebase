@@ -57,6 +57,9 @@ authentication.signUp = async fields => {
   return userProfile;
 };
 
+/**
+ * Authenticate email/password user
+ */
 authentication.signIn = async (emailAddress, password) => {
   if (!emailAddress || !password) {
     return;
@@ -94,89 +97,52 @@ authentication.signInWithAuthProvider = async providerId => {
   return response;
 };
 
-authentication.linkAuthProvider = providerId =>
-  new Promise((resolve, reject) => {
-    if (!providerId) {
-      reject();
-
-      return;
-    }
-
-    const provider = getAuthProvider(providerId);
-
-    if (!provider) {
-      reject();
-
-      return;
-    }
-
-    const { currentUser } = auth;
-
-    if (!currentUser) {
-      reject();
-
-      return;
-    }
-
-    currentUser
-      .linkWithPopup(provider)
-      .then(value => {
-        analytics.logEvent('link_auth_provider', {
-          value: providerId,
-        });
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
-  });
-
-authentication.unlinkAuthProvider = providerId =>
-  new Promise((resolve, reject) => {
-    if (!providerId) {
-      reject();
-
-      return;
-    }
-
-    const { currentUser } = auth;
-
-    if (!currentUser) {
-      reject();
-
-      return;
-    }
-
-    currentUser
-      .unlink(providerId)
-      .then(value => {
-        analytics.logEvent('unlink_auth_provider', {
-          value: providerId,
-        });
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
-  });
-
-authentication.authProviderData = providerId => {
-  if (!providerId) {
-    return;
-  }
+/**
+ * Link a user with an auth provider
+ */
+authentication.linkAuthProvider = async providerId => {
+  const provider = getAuthProvider(providerId);
 
   const { currentUser } = auth;
 
   if (!currentUser) {
-    return;
+    throw new Error('User is not authenticated');
   }
 
-  const { providerData } = currentUser;
+  const response = await currentUser.linkWithPopup(provider);
 
-  if (!providerData) {
-    return;
+  analytics.logEvent(ANALYTICS_EVENTS.LINK_AUTH_PROVIDER, {
+    value: providerId,
+  });
+
+  return response;
+};
+
+/**
+ * Unlink auth provider from user
+ */
+authentication.unlinkAuthProvider = async providerId => {
+  const { currentUser } = auth;
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
+
+  const response = await currentUser.unlink(providerId);
+
+  analytics.logEvent('unlink_auth_provider', {
+    value: providerId,
+  });
+
+  return response;
+};
+
+/**
+ * Get the current users provider data for a specific provider
+ */
+authentication.authProviderData = providerId => {
+  const { currentUser, currentUser: { providerData } = {} } = auth;
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
   }
 
   return providerData.find(
