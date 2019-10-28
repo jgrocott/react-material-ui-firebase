@@ -16,78 +16,43 @@ const avatarFileTypes = [
 
 const authentication = {};
 
-authentication.signUp = fields =>
-  new Promise((resolve, reject) => {
-    if (!fields) {
-      reject();
+/**
+ * Register an email and password user
+ */
+authentication.signUp = async fields => {
+  if (!fields) {
+    return;
+  }
 
-      return;
-    }
+  const { firstName, lastName, username, emailAddress, password } = fields;
 
-    const { firstName } = fields;
-    const { lastName } = fields;
-    const { username } = fields;
-    const { emailAddress } = fields;
-    const { password } = fields;
+  if (!firstName || !lastName || !username || !emailAddress || !password) {
+    return;
+  }
 
-    if (!firstName || !lastName || !username || !emailAddress || !password) {
-      reject();
-      return;
-    }
+  const response = await auth.createUserWithEmailAndPassword(
+    emailAddress,
+    password
+  );
 
-    const { currentUser } = auth;
+  const {
+    user: { uid },
+  } = response;
 
-    if (currentUser) {
-      reject();
-      return;
-    }
+  const reference = firestore.collection('users').doc(uid);
 
-    auth
-      .createUserWithEmailAndPassword(emailAddress, password)
-      .then(value => {
-        const { user } = value;
-
-        if (!user) {
-          reject();
-          return;
-        }
-
-        const { uid } = user;
-
-        if (!uid) {
-          reject();
-          return;
-        }
-
-        const reference = firestore.collection('users').doc(uid);
-
-        if (!reference) {
-          reject();
-
-          return;
-        }
-
-        reference
-          .set({
-            firstName,
-            lastName,
-            username,
-          })
-          .then(value => {
-            analytics.logEvent('sign_up', {
-              method: 'password',
-            });
-
-            resolve(value);
-          })
-          .catch(reason => {
-            reject(reason);
-          });
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  const userProfile = await reference.set({
+    firstName,
+    lastName,
+    username,
   });
+
+  analytics.logEvent('sign_up', {
+    method: 'password',
+  });
+
+  return userProfile;
+};
 
 authentication.signIn = (emailAddress, password) =>
   new Promise((resolve, reject) => {
