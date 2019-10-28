@@ -43,6 +43,7 @@ export const ANALYTICS_EVENTS = {
   CHANGE_USERNAME: 'change_username',
   CHANGE_EMAIL_ADDRESS: 'change_email_address',
   CHANGE_PASSWORD: 'change_password',
+  VERIFY_EMAIL_ADDRESS: 'verify_email_address',
 };
 
 export const AUTH_METHODS = {

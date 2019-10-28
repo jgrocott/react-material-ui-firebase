@@ -377,27 +377,20 @@ authentication.changePassword = async password => {
   analytics.logEvent(ANALYTICS_EVENTS.CHANGE_PASSWORD);
 };
 
-authentication.verifyEmailAddress = () =>
-  new Promise((resolve, reject) => {
-    const { currentUser } = auth;
+/**
+ * Verify a users email address
+ */
+authentication.verifyEmailAddress = async () => {
+  const { currentUser } = auth;
 
-    if (!currentUser) {
-      reject();
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-      return;
-    }
+  await currentUser.sendEmailVerification();
 
-    currentUser
-      .sendEmailVerification()
-      .then(value => {
-        analytics.logEvent('verify_email_address');
-
-        resolve(value);
-      })
-      .catch(reason => {
-        reject(reason);
-      });
-  });
+  analytics.logEvent(ANALYTICS_EVENTS.VERIFY_EMAIL_ADDRESS);
+};
 
 authentication.deleteAccount = () =>
   new Promise((resolve, reject) => {
