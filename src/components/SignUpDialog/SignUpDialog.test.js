@@ -8,20 +8,16 @@ it('renders without crashing', () => {
   const div = document.createElement('div');
 
   ReactDOM.render(
-    (
-      <SignUpDialog
-        dialogProps={{
-          open: true,
+    <SignUpDialog
+      dialogProps={{
+        open: true,
 
-          onClose: () => {}
-        }}
-
-        signUp={() => {}}
-
-        onAuthProviderClick={() => {}}
-        openSnackbar={() => {}}
-      />
-    ),
+        onClose: () => {},
+      }}
+      signUp={() => {}}
+      onAuthProviderClick={() => {}}
+      openSnackbar={() => {}}
+    />,
     div
   );
 

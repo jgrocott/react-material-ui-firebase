@@ -22,27 +22,26 @@ import AuthProviderList from '../AuthProviderList';
 import constraints from '../../constraints';
 import authentication from '../../services/authentication';
 
-const styles = (theme) => ({
+const styles = theme => ({
   dialogContent: {
-    overflowY: 'hidden'
+    overflowY: 'hidden',
   },
 
   icon: {
-    marginRight: theme.spacing(0.5)
+    marginRight: theme.spacing(0.5),
   },
 
   divider: {
-    margin: 'auto'
+    margin: 'auto',
   },
 
   grid: {
-    marginBottom: theme.spacing(2)
-  }
+    marginBottom: theme.spacing(2),
+  },
 });
 
 const initialState = {
   performingAction: false,
-
   firstName: '',
   lastName: '',
   username: '',
@@ -50,18 +49,17 @@ const initialState = {
   emailAddressConfirmation: '',
   password: '',
   passwordConfirmation: '',
-
-  errors: null
+  errors: null,
 };
 
 class SignUpDialog extends Component {
   constructor(props) {
     super(props);
-
     this.state = initialState;
   }
 
   signUp = () => {
+    const { dialogProps, openSnackbar } = this.props;
     const {
       firstName,
       lastName,
@@ -69,111 +67,123 @@ class SignUpDialog extends Component {
       emailAddress,
       emailAddressConfirmation,
       password,
-      passwordConfirmation
+      passwordConfirmation,
     } = this.state;
 
-    const errors = validate({
-      firstName: firstName,
-      lastName: lastName,
-      username: username,
-      emailAddress: emailAddress,
-      emailAddressConfirmation: emailAddressConfirmation,
-      password: password,
-      passwordConfirmation: passwordConfirmation
-    }, {
-      firstName: constraints.firstName,
-      lastName: constraints.lastName,
-      username: constraints.username,
-      emailAddress: constraints.emailAddress,
-      emailAddressConfirmation: constraints.emailAddressConfirmation,
-      password: constraints.password,
-      passwordConfirmation: constraints.passwordConfirmation
-    });
+    const errors = validate(
+      {
+        firstName,
+        lastName,
+        username,
+        emailAddress,
+        emailAddressConfirmation,
+        password,
+        passwordConfirmation,
+      },
+      {
+        firstName: constraints.firstName,
+        lastName: constraints.lastName,
+        username: constraints.username,
+        emailAddress: constraints.emailAddress,
+        emailAddressConfirmation: constraints.emailAddressConfirmation,
+        password: constraints.password,
+        passwordConfirmation: constraints.passwordConfirmation,
+      }
+    );
 
     if (errors) {
       this.setState({
-        errors: errors
+        errors,
       });
     } else {
-      this.setState({
-        performingAction: true,
+      this.setState(
+        {
+          performingAction: true,
+          errors: null,
+        },
+        () => {
+          authentication
+            .signUp({
+              firstName,
+              lastName,
+              username,
+              emailAddress,
+              password,
+            })
+            .then(value => {
+              dialogProps.onClose();
+            })
+            .catch(reason => {
+              const { code, message } = reason;
 
-        errors: null
-      }, () => {
-        authentication.signUp({
-          firstName: firstName,
-          lastName: lastName,
-          username: username,
-          emailAddress: emailAddress,
-          password: password
-        }).then((value) => {
-          this.props.dialogProps.onClose();
-        }).catch((reason) => {
-          const code = reason.code;
-          const message = reason.message;
-
-          switch (code) {
-            case 'auth/email-already-in-use':
-            case 'auth/invalid-email':
-            case 'auth/operation-not-allowed':
-            case 'auth/weak-password':
-              this.props.openSnackbar(message);
-              return;
-
-            default:
-              this.props.openSnackbar(message);
-              return;
-          }
-        }).finally(() => {
-          this.setState({
-            performingAction: false
-          });
-        });
-      });
+              switch (code) {
+                case 'auth/email-already-in-use':
+                case 'auth/invalid-email':
+                case 'auth/operation-not-allowed':
+                case 'auth/weak-password':
+                  openSnackbar(message);
+                  break;
+                default:
+                  openSnackbar(message);
+              }
+            })
+            .finally(() => {
+              this.setState({
+                performingAction: false,
+              });
+            });
+        }
+      );
     }
   };
 
-  signInWithAuthProvider = (providerId) => {
-    this.setState({
-      performingAction: true
-    }, () => {
-      authentication.signInWithAuthProvider(providerId).then((value) => {
-        this.props.dialogProps.onClose(() => {
-          const user = value.user;
-          const displayName = user.displayName;
-          const emailAddress = user.email;
+  signInWithAuthProvider = providerId => {
+    const { dialogProps, openSnackbar } = this.props;
+    this.setState(
+      {
+        performingAction: true,
+      },
+      () => {
+        authentication
+          .signInWithAuthProvider(providerId)
+          .then(value => {
+            dialogProps.onClose(() => {
+              const { user } = value;
+              const { displayName } = user;
+              const emailAddress = user.email;
 
-          this.props.openSnackbar(`Signed in as ${displayName || emailAddress}`);
-        });
-      }).catch((reason) => {
-        const code = reason.code;
-        const message = reason.message;
+              openSnackbar(`Signed in as ${displayName || emailAddress}`);
+            });
+          })
+          .catch(response => {
+            const { code, message } = response;
 
-        switch (code) {
-          case 'auth/account-exists-with-different-credential':
-          case 'auth/auth-domain-config-required':
-          case 'auth/cancelled-popup-request':
-          case 'auth/operation-not-allowed':
-          case 'auth/operation-not-supported-in-this-environment':
-          case 'auth/popup-blocked':
-          case 'auth/popup-closed-by-user':
-          case 'auth/unauthorized-domain':
-            this.props.openSnackbar(message);
-            return;
+            switch (code) {
+              case 'auth/account-exists-with-different-credential':
+              case 'auth/auth-domain-config-required':
+              case 'auth/cancelled-popup-request':
+              case 'auth/operation-not-allowed':
+              case 'auth/operation-not-supported-in-this-environment':
+              case 'auth/popup-blocked':
+              case 'auth/popup-closed-by-user':
+              case 'auth/unauthorized-domain':
+                openSnackbar(message);
+                return;
 
-          default:
-            this.props.openSnackbar(message);
-            return;
-        }
-      }).finally(() => {
-        this.setState({
-          performingAction: false
-        });
-      });
-    });
+              default:
+                openSnackbar(message);
+            }
+          })
+          .finally(() => {
+            this.setState({
+              performingAction: false,
+            });
+          });
+      }
+    );
   };
 
-  handleKeyPress = (event) => {
+  handleKeyPress = event => {
     const {
       firstName,
       lastName,
@@ -181,20 +191,22 @@ class SignUpDialog extends Component {
       emailAddress,
       emailAddressConfirmation,
       password,
-      passwordConfirmation
+      passwordConfirmation,
     } = this.state;
 
-    if (!firstName ||
+    if (
+      !firstName ||
       !lastName ||
       !username ||
       !emailAddress ||
       !emailAddressConfirmation ||
       !password ||
-      !passwordConfirmation) {
+      !passwordConfirmation
+    ) {
       return;
     }
 
-    const key = event.key;
+    const { key } = event;
 
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
       return;
@@ -209,59 +221,59 @@ class SignUpDialog extends Component {
     this.setState(initialState);
   };
 
-  handleFirstNameChange = (event) => {
+  handleFirstNameChange = event => {
     const firstName = event.target.value;
 
     this.setState({
-      firstName: firstName
+      firstName,
     });
   };
 
-  handleLastNameChange = (event) => {
+  handleLastNameChange = event => {
     const lastName = event.target.value;
 
     this.setState({
-      lastName: lastName
+      lastName,
     });
   };
 
-  handleUsernameChange = (event) => {
+  handleUsernameChange = event => {
     const username = event.target.value;
 
     this.setState({
-      username: username
+      username,
     });
   };
 
-  handleEmailAddressChange = (event) => {
+  handleEmailAddressChange = event => {
     const emailAddress = event.target.value;
 
     this.setState({
-      emailAddress: emailAddress
+      emailAddress,
     });
   };
 
-  handleEmailAddressConfirmationChange = (event) => {
+  handleEmailAddressConfirmationChange = event => {
     const emailAddressConfirmation = event.target.value;
 
     this.setState({
-      emailAddressConfirmation: emailAddressConfirmation
+      emailAddressConfirmation,
     });
   };
 
-  handlePasswordChange = (event) => {
+  handlePasswordChange = event => {
     const password = event.target.value;
 
     this.setState({
-      password: password
+      password,
     });
   };
 
-  handlePasswordConfirmationChange = (event) => {
+  handlePasswordConfirmationChange = event => {
     const passwordConfirmation = event.target.value;
 
     this.setState({
-      passwordConfirmation: passwordConfirmation
+      passwordConfirmation,
     });
   };
 
@@ -283,14 +295,18 @@ class SignUpDialog extends Component {
       password,
       passwordConfirmation,
 
-      errors
+      errors,
     } = this.state;
 
     return (
-      <Dialog fullWidth maxWidth="md" {...dialogProps} onKeyPress={this.handleKeyPress} onExited={this.handleExited}>
-        <DialogTitle>
-          Sign up for an account
-        </DialogTitle>
+      <Dialog
+        fullWidth
+        maxWidth="md"
+        {...dialogProps}
+        onKeyPress={this.handleKeyPress}
+        onExited={this.handleExited}
+      >
+        <DialogTitle>Sign up for an account</DialogTitle>
 
         <Hidden smDown>
           <DialogContent className={classes.dialogContent}>
@@ -298,7 +314,6 @@ class SignUpDialog extends Component {
               <Grid item xs={3}>
                 <AuthProviderList
                   performingAction={performingAction}
-
                   onAuthProviderClick={this.signInWithAuthProvider}
                 />
               </Grid>
@@ -315,14 +330,15 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.firstName)}
                       fullWidth
-                      helperText={(errors && errors.firstName) ? errors.firstName[0] : ''}
+                      helperText={
+                        errors && errors.firstName ? errors.firstName[0] : ''
+                      }
                       label="First name"
                       placeholder="John"
                       required
                       type="text"
                       value={firstName}
                       variant="outlined"
-
                       onChange={this.handleFirstNameChange}
                     />
                   </Grid>
@@ -333,14 +349,15 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.lastName)}
                       fullWidth
-                      helperText={(errors && errors.lastName) ? errors.lastName[0] : ''}
+                      helperText={
+                        errors && errors.lastName ? errors.lastName[0] : ''
+                      }
                       label="Last name"
                       placeholder="Doe"
                       required
                       type="text"
                       value={lastName}
                       variant="outlined"
-
                       onChange={this.handleLastNameChange}
                     />
                   </Grid>
@@ -353,14 +370,15 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.username)}
                       fullWidth
-                      helperText={(errors && errors.username) ? errors.username[0] : ''}
+                      helperText={
+                        errors && errors.username ? errors.username[0] : ''
+                      }
                       label="Username"
                       placeholder="John"
                       required
                       type="text"
                       value={username}
                       variant="outlined"
-
                       onChange={this.handleUsernameChange}
                     />
                   </Grid>
@@ -373,14 +391,17 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.emailAddress)}
                       fullWidth
-                      helperText={(errors && errors.emailAddress) ? errors.emailAddress[0] : ''}
+                      helperText={
+                        errors && errors.emailAddress
+                          ? errors.emailAddress[0]
+                          : ''
+                      }
                       label="E-mail address"
                       placeholder="john@doe.com"
                       required
                       type="email"
                       value={emailAddress}
                       variant="outlined"
-
                       onChange={this.handleEmailAddressChange}
                     />
                   </Grid>
@@ -391,14 +412,17 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.emailAddressConfirmation)}
                       fullWidth
-                      helperText={(errors && errors.emailAddressConfirmation) ? errors.emailAddressConfirmation[0] : ''}
+                      helperText={
+                        errors && errors.emailAddressConfirmation
+                          ? errors.emailAddressConfirmation[0]
+                          : ''
+                      }
                       label="E-mail address confirmation"
                       placeholder="john@doe.com"
                       required
                       type="email"
                       value={emailAddressConfirmation}
                       variant="outlined"
-
                       onChange={this.handleEmailAddressConfirmationChange}
                     />
                   </Grid>
@@ -411,14 +435,15 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.password)}
                       fullWidth
-                      helperText={(errors && errors.password) ? errors.password[0] : ''}
+                      helperText={
+                        errors && errors.password ? errors.password[0] : ''
+                      }
                       label="Password"
                       placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
                       required
                       type="password"
                       value={password}
                       variant="outlined"
-
                       onChange={this.handlePasswordChange}
                     />
                   </Grid>
@@ -429,14 +454,17 @@ class SignUpDialog extends Component {
                       disabled={performingAction}
                       error={!!(errors && errors.passwordConfirmation)}
                       fullWidth
-                      helperText={(errors && errors.passwordConfirmation) ? errors.passwordConfirmation[0] : ''}
+                      helperText={
+                        errors && errors.passwordConfirmation
+                          ? errors.passwordConfirmation[0]
+                          : ''
+                      }
                       label="Password confirmation"
                       placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
                       required
                       type="password"
                       value={passwordConfirmation}
                       variant="outlined"
-
                       onChange={this.handlePasswordConfirmationChange}
                     />
                   </Grid>
@@ -451,7 +479,6 @@ class SignUpDialog extends Component {
             <AuthProviderList
               gutterBottom
               performingAction={performingAction}
-
               onAuthProviderClick={this.signInWithAuthProvider}
             />
 
@@ -462,14 +489,15 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.firstName)}
                   fullWidth
-                  helperText={(errors && errors.firstName) ? errors.firstName[0] : ''}
+                  helperText={
+                    errors && errors.firstName ? errors.firstName[0] : ''
+                  }
                   label="First name"
                   placeholder="John"
                   required
                   type="text"
                   value={firstName}
                   variant="outlined"
-
                   onChange={this.handleFirstNameChange}
                 />
               </Grid>
@@ -480,14 +508,15 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.lastName)}
                   fullWidth
-                  helperText={(errors && errors.lastName) ? errors.lastName[0] : ''}
+                  helperText={
+                    errors && errors.lastName ? errors.lastName[0] : ''
+                  }
                   label="Last name"
                   placeholder="Doe"
                   required
                   type="text"
                   value={lastName}
                   variant="outlined"
-
                   onChange={this.handleLastNameChange}
                 />
               </Grid>
@@ -498,14 +527,15 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.username)}
                   fullWidth
-                  helperText={(errors && errors.username) ? errors.username[0] : ''}
+                  helperText={
+                    errors && errors.username ? errors.username[0] : ''
+                  }
                   label="Username"
                   placeholder="John"
                   required
                   type="text"
                   value={username}
                   variant="outlined"
-
                   onChange={this.handleUsernameChange}
                 />
               </Grid>
@@ -516,14 +546,15 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.emailAddress)}
                   fullWidth
-                  helperText={(errors && errors.emailAddress) ? errors.emailAddress[0] : ''}
+                  helperText={
+                    errors && errors.emailAddress ? errors.emailAddress[0] : ''
+                  }
                   label="E-mail address"
                   placeholder="john@doe.com"
                   required
                   type="email"
                   value={emailAddress}
                   variant="outlined"
-
                   onChange={this.handleEmailAddressChange}
                 />
               </Grid>
@@ -534,14 +565,17 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.emailAddressConfirmation)}
                   fullWidth
-                  helperText={(errors && errors.emailAddressConfirmation) ? errors.emailAddressConfirmation[0] : ''}
+                  helperText={
+                    errors && errors.emailAddressConfirmation
+                      ? errors.emailAddressConfirmation[0]
+                      : ''
+                  }
                   label="E-mail address confirmation"
                   placeholder="john@doe.com"
                   required
                   type="email"
                   value={emailAddressConfirmation}
                   variant="outlined"
-
                   onChange={this.handleEmailAddressConfirmationChange}
                 />
               </Grid>
@@ -552,14 +586,15 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.password)}
                   fullWidth
-                  helperText={(errors && errors.password) ? errors.password[0] : ''}
+                  helperText={
+                    errors && errors.password ? errors.password[0] : ''
+                  }
                   label="Password"
                   placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
                   required
                   type="password"
                   value={password}
                   variant="outlined"
-
                   onChange={this.handlePasswordChange}
                 />
               </Grid>
@@ -570,14 +605,17 @@ class SignUpDialog extends Component {
                   disabled={performingAction}
                   error={!!(errors && errors.passwordConfirmation)}
                   fullWidth
-                  helperText={(errors && errors.passwordConfirmation) ? errors.passwordConfirmation[0] : ''}
+                  helperText={
+                    errors && errors.passwordConfirmation
+                      ? errors.passwordConfirmation[0]
+                      : ''
+                  }
                   label="Password confirmation"
                   placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
                   required
                   type="password"
                   value={passwordConfirmation}
                   variant="outlined"
-
                   onChange={this.handlePasswordConfirmationChange}
                 />
               </Grid>
@@ -586,7 +624,9 @@ class SignUpDialog extends Component {
         </Hidden>
 
         <DialogActions>
-          <Button color="primary" onClick={dialogProps.onClose}>Cancel</Button>
+          <Button color="primary" onClick={dialogProps.onClose}>
+            Cancel
+          </Button>
 
           <Button
             color="primary"
@@ -601,8 +641,8 @@ class SignUpDialog extends Component {
               performingAction
             }
             variant="contained"
-
-            onClick={this.signUp}>
+            onClick={this.signUp}
+          >
             Sign up
           </Button>
         </DialogActions>
@@ -619,7 +659,7 @@ SignUpDialog.propTypes = {
   dialogProps: PropTypes.object.isRequired,
 
   // Custom Functions
-  openSnackbar: PropTypes.func.isRequired
+  openSnackbar: PropTypes.func.isRequired,
 };
 
 export default withStyles(styles)(SignUpDialog);

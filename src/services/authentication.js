@@ -1,96 +1,103 @@
-import firebase, { analytics, auth, firestore, storage } from '../firebase';
+import firebase, {
+  analytics,
+  auth,
+  firestore,
+  storage,
+  getAuthProvider,
+} from '../firebase';
 
 const avatarFileTypes = [
   'image/gif',
   'image/jpeg',
   'image/png',
   'image/webp',
-  'image/svg+xml'
+  'image/svg+xml',
 ];
 
 const authentication = {};
 
-authentication.signUp = (fields) => {
-  return new Promise((resolve, reject) => {
+authentication.signUp = fields =>
+  new Promise((resolve, reject) => {
     if (!fields) {
       reject();
 
       return;
     }
 
-    const firstName = fields.firstName;
-    const lastName = fields.lastName;
-    const username = fields.username;
-    const emailAddress = fields.emailAddress;
-    const password = fields.password;
+    const { firstName } = fields;
+    const { lastName } = fields;
+    const { username } = fields;
+    const { emailAddress } = fields;
+    const { password } = fields;
 
     if (!firstName || !lastName || !username || !emailAddress || !password) {
       reject();
-
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (currentUser) {
       reject();
-
       return;
     }
 
-    auth.createUserWithEmailAndPassword(emailAddress, password).then((value) => {
-      const user = value.user;
+    auth
+      .createUserWithEmailAndPassword(emailAddress, password)
+      .then(value => {
+        const { user } = value;
 
-      if (!user) {
-        reject();
+        if (!user) {
+          reject();
+          return;
+        }
 
-        return;
-      }
+        const { uid } = user;
 
-      const uid = user.uid;
+        if (!uid) {
+          reject();
+          return;
+        }
 
-      if (!uid) {
-        reject();
+        const reference = firestore.collection('users').doc(uid);
 
-        return;
-      }
+        if (!reference) {
+          reject();
 
-      const reference = firestore.collection('users').doc(uid);
+          return;
+        }
 
-      if (!reference) {
-        reject();
+        reference
+          .set({
+            firstName,
+            lastName,
+            username,
+          })
+          .then(value => {
+            analytics.logEvent('sign_up', {
+              method: 'password',
+            });
 
-        return;
-      }
-
-      reference.set({
-        firstName: firstName,
-        lastName: lastName,
-        username: username
-      }).then((value) => {
-        analytics.logEvent('sign_up', {
-          method: 'password'
-        });
-
-        resolve(value);
-      }).catch((reason) => {
+            resolve(value);
+          })
+          .catch(reason => {
+            reject(reason);
+          });
+      })
+      .catch(reason => {
         reject(reason);
       });
-    }).catch((reason) => {
-      reject(reason);
-    });
   });
-};
 
-authentication.signIn = (emailAddress, password) => {
-  return new Promise((resolve, reject) => {
+authentication.signIn = (emailAddress, password) =>
+  new Promise((resolve, reject) => {
     if (!emailAddress || !password) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (currentUser) {
       reject();
@@ -98,27 +105,50 @@ authentication.signIn = (emailAddress, password) => {
       return;
     }
 
-    auth.signInWithEmailAndPassword(emailAddress, password).then((value) => {
-      analytics.logEvent('login', {
-        method: 'password'
-      });
+    auth
+      .signInWithEmailAndPassword(emailAddress, password)
+      .then(value => {
+        analytics.logEvent('login', {
+          method: 'password',
+        });
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
+
+/**
+ * Register user using an auth provider
+ */
+authentication.signInWithAuthProvider = async providerId => {
+  const provider = getAuthProvider(providerId);
+
+  const { currentUser } = auth;
+  if (currentUser) {
+    throw new Error('User already authenticated.');
+  }
+
+  // Attempt to register the user
+  const response = await auth.signInWithPopup(provider);
+
+  analytics.logEvent('login', {
+    method: providerId,
+  });
+
+  return response;
 };
 
-authentication.signInWithAuthProvider = (providerId) => {
-  return new Promise((resolve, reject) => {
+authentication.linkAuthProvider = providerId =>
+  new Promise((resolve, reject) => {
     if (!providerId) {
       reject();
 
       return;
     }
 
-    const provider = new firebase.auth.OAuthProvider(providerId);
+    const provider = getAuthProvider(providerId);
 
     if (!provider) {
       reject();
@@ -126,43 +156,7 @@ authentication.signInWithAuthProvider = (providerId) => {
       return;
     }
 
-    const currentUser = auth.currentUser;
-
-    if (currentUser) {
-      reject();
-
-      return;
-    }
-
-    auth.signInWithPopup(provider).then((value) => {
-      analytics.logEvent('login', {
-        method: providerId
-      });
-
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
-  });
-};
-
-authentication.linkAuthProvider = (providerId) => {
-  return new Promise((resolve, reject) => {
-    if (!providerId) {
-      reject();
-
-      return;
-    }
-
-    const provider = new firebase.auth.OAuthProvider(providerId);
-
-    if (!provider) {
-      reject();
-
-      return;
-    }
-
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -170,27 +164,29 @@ authentication.linkAuthProvider = (providerId) => {
       return;
     }
 
-    currentUser.linkWithPopup(provider).then((value) => {
-      analytics.logEvent('link_auth_provider', {
-        value: providerId
+    currentUser
+      .linkWithPopup(provider)
+      .then(value => {
+        analytics.logEvent('link_auth_provider', {
+          value: providerId,
+        });
+
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
       });
-
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
   });
-};
 
-authentication.unlinkAuthProvider = (providerId) => {
-  return new Promise((resolve, reject) => {
+authentication.unlinkAuthProvider = providerId =>
+  new Promise((resolve, reject) => {
     if (!providerId) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -198,41 +194,45 @@ authentication.unlinkAuthProvider = (providerId) => {
       return;
     }
 
-    currentUser.unlink(providerId).then((value) => {
-      analytics.logEvent('unlink_auth_provider', {
-        value: providerId
+    currentUser
+      .unlink(providerId)
+      .then(value => {
+        analytics.logEvent('unlink_auth_provider', {
+          value: providerId,
+        });
+
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
       });
-
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
   });
-};
 
-authentication.authProviderData = (providerId) => {
+authentication.authProviderData = providerId => {
   if (!providerId) {
     return;
   }
 
-  const currentUser = auth.currentUser;
+  const { currentUser } = auth;
 
   if (!currentUser) {
     return;
   }
 
-  const providerData = currentUser.providerData;
+  const { providerData } = currentUser;
 
   if (!providerData) {
     return;
   }
 
-  return providerData.find(authProvider => authProvider.providerId === providerId);
+  return providerData.find(
+    authProvider => authProvider.providerId === providerId
+  );
 };
 
-authentication.signOut = () => {
-  return new Promise((resolve, reject) => {
-    const currentUser = auth.currentUser;
+authentication.signOut = () =>
+  new Promise((resolve, reject) => {
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -240,25 +240,27 @@ authentication.signOut = () => {
       return;
     }
 
-    auth.signOut().then((value) => {
-      analytics.logEvent('sign_out');
+    auth
+      .signOut()
+      .then(value => {
+        analytics.logEvent('sign_out');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.resetPassword = (emailAddress) => {
-  return new Promise((resolve, reject) => {
+authentication.resetPassword = emailAddress =>
+  new Promise((resolve, reject) => {
     if (!emailAddress) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (currentUser) {
       reject();
@@ -266,18 +268,20 @@ authentication.resetPassword = (emailAddress) => {
       return;
     }
 
-    auth.sendPasswordResetEmail(emailAddress).then((value) => {
-      analytics.logEvent('reset_password');
+    auth
+      .sendPasswordResetEmail(emailAddress)
+      .then(value => {
+        analytics.logEvent('reset_password');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.changeAvatar = (avatar) => {
-  return new Promise((resolve, reject) => {
+authentication.changeAvatar = avatar =>
+  new Promise((resolve, reject) => {
     if (!avatar) {
       reject();
 
@@ -290,13 +294,13 @@ authentication.changeAvatar = (avatar) => {
       return;
     }
 
-    if (avatar.size > (20 * 1024 * 1024)) {
+    if (avatar.size > 20 * 1024 * 1024) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -304,7 +308,7 @@ authentication.changeAvatar = (avatar) => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -312,7 +316,11 @@ authentication.changeAvatar = (avatar) => {
       return;
     }
 
-    const reference = storage.ref().child('images').child('avatars').child(uid);
+    const reference = storage
+      .ref()
+      .child('images')
+      .child('avatars')
+      .child(uid);
 
     if (!reference) {
       reject();
@@ -320,29 +328,37 @@ authentication.changeAvatar = (avatar) => {
       return;
     }
 
-    reference.put(avatar).then((uploadTaskSnapshot) => {
-      reference.getDownloadURL().then((value) => {
-        currentUser.updateProfile({
-          photoURL: value
-        }).then((value) => {
-          analytics.logEvent('change_avatar');
+    reference
+      .put(avatar)
+      .then(uploadTaskSnapshot => {
+        reference
+          .getDownloadURL()
+          .then(value => {
+            currentUser
+              .updateProfile({
+                photoURL: value,
+              })
+              .then(value => {
+                analytics.logEvent('change_avatar');
 
-          resolve(value);
-        }).catch((reason) => {
-          reject(reason);
-        });
-      }).catch((reason) => {
+                resolve(value);
+              })
+              .catch(reason => {
+                reject(reason);
+              });
+          })
+          .catch(reason => {
+            reject(reason);
+          });
+      })
+      .catch(reason => {
         reject(reason);
       });
-    }).catch((reason) => {
-      reject(reason);
-    });
   });
-};
 
-authentication.removeAvatar = () => {
-  return new Promise((resolve, reject) => {
-    const currentUser = auth.currentUser;
+authentication.removeAvatar = () =>
+  new Promise((resolve, reject) => {
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -350,7 +366,7 @@ authentication.removeAvatar = () => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -358,39 +374,48 @@ authentication.removeAvatar = () => {
       return;
     }
 
-    currentUser.updateProfile({
-      photoURL: null
-    }).then((value) => {
-      const reference = storage.ref().child('images').child('avatars').child(uid);
+    currentUser
+      .updateProfile({
+        photoURL: null,
+      })
+      .then(value => {
+        const reference = storage
+          .ref()
+          .child('images')
+          .child('avatars')
+          .child(uid);
 
-      if (!reference) {
-        reject();
+        if (!reference) {
+          reject();
 
-        return;
-      }
+          return;
+        }
 
-      reference.delete().then((value) => {
-        analytics.logEvent('remove_avatar');
+        reference
+          .delete()
+          .then(value => {
+            analytics.logEvent('remove_avatar');
 
-        resolve(value);
-      }).catch((reason) => {
+            resolve(value);
+          })
+          .catch(reason => {
+            reject(reason);
+          });
+      })
+      .catch(reason => {
         reject(reason);
       });
-    }).catch((reason) => {
-      reject(reason);
-    });
   });
-};
 
-authentication.changeFirstName = (firstName) => {
-  return new Promise((resolve, reject) => {
+authentication.changeFirstName = firstName =>
+  new Promise((resolve, reject) => {
     if (!firstName) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -398,7 +423,7 @@ authentication.changeFirstName = (firstName) => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -414,27 +439,29 @@ authentication.changeFirstName = (firstName) => {
       return;
     }
 
-    reference.update({
-      firstName: firstName
-    }).then((value) => {
-      analytics.logEvent('change_first_name');
+    reference
+      .update({
+        firstName,
+      })
+      .then(value => {
+        analytics.logEvent('change_first_name');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.changeLastName = (lastName) => {
-  return new Promise((resolve, reject) => {
+authentication.changeLastName = lastName =>
+  new Promise((resolve, reject) => {
     if (!lastName) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -442,7 +469,7 @@ authentication.changeLastName = (lastName) => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -458,27 +485,29 @@ authentication.changeLastName = (lastName) => {
       return;
     }
 
-    reference.update({
-      lastName: lastName
-    }).then((value) => {
-      analytics.logEvent('change_last_name');
+    reference
+      .update({
+        lastName,
+      })
+      .then(value => {
+        analytics.logEvent('change_last_name');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.changeUsername = (username) => {
-  return new Promise((resolve, reject) => {
+authentication.changeUsername = username =>
+  new Promise((resolve, reject) => {
     if (!username) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -486,7 +515,7 @@ authentication.changeUsername = (username) => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -502,27 +531,29 @@ authentication.changeUsername = (username) => {
       return;
     }
 
-    reference.update({
-      username: username
-    }).then((value) => {
-      analytics.logEvent('change_username');
+    reference
+      .update({
+        username,
+      })
+      .then(value => {
+        analytics.logEvent('change_username');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.changeEmailAddress = (emailAddress) => {
-  return new Promise((resolve, reject) => {
+authentication.changeEmailAddress = emailAddress =>
+  new Promise((resolve, reject) => {
     if (!emailAddress) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -530,7 +561,7 @@ authentication.changeEmailAddress = (emailAddress) => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -538,25 +569,27 @@ authentication.changeEmailAddress = (emailAddress) => {
       return;
     }
 
-    currentUser.updateEmail(emailAddress).then((value) => {
-      analytics.logEvent('change_email_address');
+    currentUser
+      .updateEmail(emailAddress)
+      .then(value => {
+        analytics.logEvent('change_email_address');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.changePassword = (password) => {
-  return new Promise((resolve, reject) => {
+authentication.changePassword = password =>
+  new Promise((resolve, reject) => {
     if (!password) {
       reject();
 
       return;
     }
 
-    const currentUser = auth.currentUser;
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -564,7 +597,7 @@ authentication.changePassword = (password) => {
       return;
     }
 
-    const uid = currentUser.uid;
+    const { uid } = currentUser;
 
     if (!uid) {
       reject();
@@ -572,33 +605,38 @@ authentication.changePassword = (password) => {
       return;
     }
 
-    currentUser.updatePassword(password).then((value) => {
-      const reference = firestore.collection('users').doc(uid);
+    currentUser
+      .updatePassword(password)
+      .then(value => {
+        const reference = firestore.collection('users').doc(uid);
 
-      if (!reference) {
-        reject();
+        if (!reference) {
+          reject();
 
-        return;
-      }
+          return;
+        }
 
-      reference.update({
-        lastPasswordChange: firebase.firestore.FieldValue.serverTimestamp()
-      }).then((value) => {
-        analytics.logEvent('change_password');
+        reference
+          .update({
+            lastPasswordChange: firebase.firestore.FieldValue.serverTimestamp(),
+          })
+          .then(value => {
+            analytics.logEvent('change_password');
 
-        resolve(value);
-      }).catch((reason) => {
+            resolve(value);
+          })
+          .catch(reason => {
+            reject(reason);
+          });
+      })
+      .catch(reason => {
         reject(reason);
       });
-    }).catch((reason) => {
-      reject(reason);
-    });
   });
-};
 
-authentication.verifyEmailAddress = () => {
-  return new Promise((resolve, reject) => {
-    const currentUser = auth.currentUser;
+authentication.verifyEmailAddress = () =>
+  new Promise((resolve, reject) => {
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -606,19 +644,21 @@ authentication.verifyEmailAddress = () => {
       return;
     }
 
-    currentUser.sendEmailVerification().then((value) => {
-      analytics.logEvent('verify_email_address');
+    currentUser
+      .sendEmailVerification()
+      .then(value => {
+        analytics.logEvent('verify_email_address');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
-authentication.deleteAccount = () => {
-  return new Promise((resolve, reject) => {
-    const currentUser = auth.currentUser;
+authentication.deleteAccount = () =>
+  new Promise((resolve, reject) => {
+    const { currentUser } = auth;
 
     if (!currentUser) {
       reject();
@@ -626,14 +666,16 @@ authentication.deleteAccount = () => {
       return;
     }
 
-    currentUser.delete().then((value) => {
-      analytics.logEvent('delete_account');
+    currentUser
+      .delete()
+      .then(value => {
+        analytics.logEvent('delete_account');
 
-      resolve(value);
-    }).catch((reason) => {
-      reject(reason);
-    });
+        resolve(value);
+      })
+      .catch(reason => {
+        reject(reason);
+      });
   });
-};
 
 export default authentication;
