@@ -344,58 +344,38 @@ authentication.changeEmailAddress = async emailAddress => {
   analytics.logEvent(ANALYTICS_EVENTS.CHANGE_EMAIL_ADDRESS);
 };
 
-authentication.changePassword = password =>
-  new Promise((resolve, reject) => {
-    if (!password) {
-      reject();
+/**
+ * Change a users password
+ */
+authentication.changePassword = async password => {
+  if (!password) {
+    throw new Error('Password is required.');
+  }
 
-      return;
-    }
+  const {
+    currentUser,
+    currentUser: { uid },
+  } = auth;
 
-    const { currentUser } = auth;
+  if (!currentUser) {
+    throw new Error('User is not authenticated');
+  }
 
-    if (!currentUser) {
-      reject();
+  await currentUser.updatePassword(password);
 
-      return;
-    }
+  const reference = firestore.collection(COLLECTIONS.USERS).doc(uid);
+  const {
+    firestore: {
+      FieldValue: { serverTimestamp },
+    },
+  } = firebase;
 
-    const { uid } = currentUser;
-
-    if (!uid) {
-      reject();
-
-      return;
-    }
-
-    currentUser
-      .updatePassword(password)
-      .then(value => {
-        const reference = firestore.collection('users').doc(uid);
-
-        if (!reference) {
-          reject();
-
-          return;
-        }
-
-        reference
-          .update({
-            lastPasswordChange: firebase.firestore.FieldValue.serverTimestamp(),
-          })
-          .then(value => {
-            analytics.logEvent('change_password');
-
-            resolve(value);
-          })
-          .catch(reason => {
-            reject(reason);
-          });
-      })
-      .catch(reason => {
-        reject(reason);
-      });
+  await reference.update({
+    lastPasswordChange: serverTimestamp(),
   });
+
+  analytics.logEvent(ANALYTICS_EVENTS.CHANGE_PASSWORD);
+};
 
 authentication.verifyEmailAddress = () =>
   new Promise((resolve, reject) => {
